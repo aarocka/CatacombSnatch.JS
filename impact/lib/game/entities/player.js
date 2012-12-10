@@ -10,6 +10,7 @@ EntityPlayer = ig.Entity.extend({
 	
 	// The players (collision) size is a bit smaller than the animation
 	// frames, so we have to move the collision box a bit (offset)
+
 	size: {x: 18, y:32},
 	offset: {x: 7, y: 0},
 	
@@ -32,7 +33,6 @@ EntityPlayer = ig.Entity.extend({
 	
 	init: function( x, y, settings ) {
 		this.parent( x, y, settings );
-		
 		// Add the animations
 		this.addAnim( 'idle', 1, [0] );
 		this.addAnim( 'run_back', 0.07, [0,1,2,3,4,5] );
@@ -97,48 +97,48 @@ EntityPlayer = ig.Entity.extend({
 		if( this.vel.y < 0 ) {
 			this.currentAnim = this.anims.run_fwd;
 			playerDirection = 0;
-			ig.log(playerDirection);
 		}
 		else if( this.vel.y > 0 ) {
 			this.currentAnim = this.anims.run_back;
 			playerDirection = 180;
-			ig.log(playerDirection);
 		}
 		else if( this.vel.x < 0 ) {
 			this.currentAnim = this.anims.left;
 			playerDirection = -90;
-			ig.log(playerDirection);
 		}
 		else if ( this.vel.x > 0) {
 			this.currentAnim = this.anims.right;
 			playerDirection = 90;
-			ig.log(playerDirection);
 		};
 		
 		if(this.vel.y > 0 && this.vel.x > 0 ) {
 			this.currentAnim = this.anims.diag_back_right;
 			playerDirection = 135;
-			ig.log(playerDirection);
 		}
 		else if(this.vel.y > 0 && this.vel.x < 0 ) {
 			this.currentAnim = this.anims.diag_back_left;
 			playerDirection = -135;
-			ig.log(playerDirection);
 		};
 
 		if(this.vel.y < 0 && this.vel.x > 0 ) {
 			this.currentAnim = this.anims.diag_fwd_right;
 			playerDirection = 45;
-			ig.log(playerDirection);
 		}
 		else if(this.vel.y < 0 && this.vel.x < 0 ) {
 			this.currentAnim = this.anims.diag_fwd_left;
 			playerDirection = -45;
-			ig.log(playerDirection);
 		};
+
+		if(this.vel.x == 0 && this.vel.y == 0 && this.currentAnim == "this.anims.run_fwd" ) {
+			this.currentAnim = this.anims.run_fwd_idle;
+		};
+
+
+
+
 		
 		
-		
+		ig.log(playerDirection);
 		
 		// move!
 		this.parent();
