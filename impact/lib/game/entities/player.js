@@ -30,6 +30,7 @@ EntityPlayer = ig.Entity.extend({
 	accelAir: 560,
 	health: 10,
 	flip: false,
+	playerdirection:0,
 	
 	init: function( x, y, settings ) {
 		this.parent( x, y, settings );
@@ -43,7 +44,7 @@ EntityPlayer = ig.Entity.extend({
 		this.addAnim( 'diag_fwd_right', 0.07, [30,31,32,33,34,35] );
 		this.addAnim( 'right', 0.07, [36,37,38,39,40,41] );
 		this.addAnim( 'diag_back_right', 0.07, [42,43,44,45,46,47]);
-
+		
 		//idle animations
 		this.addAnim( 'run_back_idle', 0.07, [0] );
 		this.addAnim( 'diag_back_left_idle', 0.07, [6] );
@@ -58,7 +59,7 @@ EntityPlayer = ig.Entity.extend({
 	
 	update: function() {
 		//sets a variable or something
-		var playerDirection;
+		
 		// move left or right
 		var accel = this.accelAir;
 		if( ig.input.state('left') ) {
@@ -96,49 +97,67 @@ EntityPlayer = ig.Entity.extend({
 		// set the current animation, based on the player's velocity
 		if( this.vel.y < 0 ) {
 			this.currentAnim = this.anims.run_fwd;
-			playerDirection = 0;
+			this.playerdirection = 0;
 		}
 		else if( this.vel.y > 0 ) {
 			this.currentAnim = this.anims.run_back;
-			playerDirection = 180;
+			this.playerdirection = 180;
 		}
 		else if( this.vel.x < 0 ) {
 			this.currentAnim = this.anims.left;
-			playerDirection = -90;
+			this.playerdirection = -90;
 		}
 		else if ( this.vel.x > 0) {
 			this.currentAnim = this.anims.right;
-			playerDirection = 90;
+			this.playerdirection = 90;
 		};
 		
 		if(this.vel.y > 0 && this.vel.x > 0 ) {
 			this.currentAnim = this.anims.diag_back_right;
-			playerDirection = 135;
+			this.playerdirection = 135;
 		}
 		else if(this.vel.y > 0 && this.vel.x < 0 ) {
 			this.currentAnim = this.anims.diag_back_left;
-			playerDirection = -135;
+			this.playerdirection = -135;
 		};
 
 		if(this.vel.y < 0 && this.vel.x > 0 ) {
 			this.currentAnim = this.anims.diag_fwd_right;
-			playerDirection = 45;
+			this.playerdirection = 45;
 		}
 		else if(this.vel.y < 0 && this.vel.x < 0 ) {
 			this.currentAnim = this.anims.diag_fwd_left;
-			playerDirection = -45;
+			this.playerdirection = -45;
 		};
 
-		if(this.vel.x == 0 && this.vel.y == 0 && this.currentAnim == "this.anims.run_fwd" ) {
+		if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==0 ) {
 			this.currentAnim = this.anims.run_fwd_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==180) {
+			this.currentAnim = this.anims.run_back_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==45) {
+			this.currentAnim = this.anims.diag_fwd_right_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-45) {
+			this.currentAnim = this.anims.diag_fwd_left_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==135) {
+			this.currentAnim = this.anims.diag_back_right_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-135) {
+			this.currentAnim = this.anims.diag_back_left_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==90) {
+			this.currentAnim = this.anims.right_idle;
+		}
+		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-90) {
+			this.currentAnim = this.anims.left_idle;
 		};
 
 
 
 
-		
-		
-		ig.log(playerDirection);
 		
 		// move!
 		this.parent();
