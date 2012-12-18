@@ -1,6 +1,6 @@
 CatacombSnatch
 ==============
-
+```
  #### ##### #   # #####   #   #   # ####  ##### 
 #     #   # #  ##   #    ###  #  ## #   # #     
 #     #   # # # #   #   # # # # # # ####  ####  
@@ -17,6 +17,8 @@ CatacombSnatch
 \__ \| '_ \)| ||  _|  |  _| | || '_|/ -_)    | (_ |/ _` || '  \()/ -_)(_-< 
 |___/| .__/ |_| \__|  |_|   |_||_|  \___|     \___|\__,_||_|_|_| \___|/__/ 
      |_|                                                                  
+
+```
 #ABOUT
 So this is my attempt at porting Mojang's Catacomb Snatch. Catacomb Snatch was a
 game created by Mojang for a charity event called the Humble Mojam Bundle and
