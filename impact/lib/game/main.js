@@ -6,7 +6,8 @@ ig.module(
 	'impact.font',
 	'game.entities.player',
 	'game.levels.test',
-	'impact.debug.debug'
+	'impact.debug.debug',
+	'plugins.webgl-2d'
 )
 .defines(function(){
 
@@ -25,6 +26,7 @@ MyGame = ig.Game.extend({
 		ig.input.bind( ig.KEY.DOWN_ARROW, 'backwards');
 		ig.input.bind( ig.KEY.C, 'shoot' );
 		this.loadLevel(LevelTest);
+		
 	},
 	
 	update: function() {
