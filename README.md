@@ -36,8 +36,8 @@ releasing a baked version of the game along with the full sourcecode for the pag
 all of the entiteis, server side code, and art assets.
 
 #TODO
-*Build AI
-*Build map
-*Implement sound
-*Fix WebGL
-*Work on native builds
+* Build AI
+* Build map
+* Implement sound
+* Fix WebGL
+* Work on native builds
