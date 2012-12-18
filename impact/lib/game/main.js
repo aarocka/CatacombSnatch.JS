@@ -7,7 +7,7 @@ ig.module(
 	'game.entities.player',
 	'game.levels.test',
 	'impact.debug.debug',
-	'plugins.webgl-2d'
+	'plugins.impact-splash-loader'
 )
 .defines(function(){
 
@@ -58,6 +58,6 @@ MyGame = ig.Game.extend({
 
 // Start the Game with 60fps, a resolution of 320x240, scaled
 // up by a factor of 2
-ig.main( '#canvas', MyGame, 60, 400, 290, 2 );
+ig.main( '#canvas', MyGame, 60, 400, 290, 2, ig.ImpactSplashLoader );
 
 });

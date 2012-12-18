@@ -91,7 +91,7 @@ EntityPlayer = ig.Entity.extend({
 
 		// shoot
 		if( ig.input.pressed('shoot') ) {
-			ig.game.spawnEntity( EntityBullet, this.pos.x, this.pos.y, {playerdirection:this.playerdirection} );
+			ig.game.spawnEntity( EntityBullet, this.pos.x, this.pos.y+15, {playerdirection:this.playerdirection} );
 		};
 		
 		// set the current animation, based on the player's velocity
@@ -133,25 +133,25 @@ EntityPlayer = ig.Entity.extend({
 		if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==0 ) {
 			this.currentAnim = this.anims.run_fwd_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==180) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==180) {
 			this.currentAnim = this.anims.run_back_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==45) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==45) {
 			this.currentAnim = this.anims.diag_fwd_right_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-45) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-45) {
 			this.currentAnim = this.anims.diag_fwd_left_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==135) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==135) {
 			this.currentAnim = this.anims.diag_back_right_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-135) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-135) {
 			this.currentAnim = this.anims.diag_back_left_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==90) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==90) {
 			this.currentAnim = this.anims.right_idle;
 		}
-		else if (this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-90) {
+		else if(this.vel.x == 0 && this.vel.y == 0 && this.playerdirection==-90) {
 			this.currentAnim = this.anims.left_idle;
 		};
 
@@ -199,37 +199,37 @@ EntityBullet = ig.Entity.extend({
 			this.vel.x =0;
 			this.vel.y=-500;
 		}
-		else if (settings.playerdirection == 180){
+		else if(settings.playerdirection == 180){
 			this.currentAnim = this.anims.back;
 			this.vel.x =0;
 			this.vel.y=500;
 		}
-		else if (settings.playerdirection == 90){
+		else if(settings.playerdirection == 90){
 			this.currentAnim = this.anims.right;
 			this.vel.x =500;
 			this.vel.y=0;
 		}
-		else if (settings.playerdirection == -90){
+		else if(settings.playerdirection == -90){
 			this.currentAnim = this.anims.left;
 			this.vel.x =-500;
 			this.vel.y=0;
 		}
-		else if (settings.playerdirection == 45){
+		else if(settings.playerdirection == 45){
 			this.currentAnim = this.anims.forward_right;
 			this.vel.x =353.55;
 			this.vel.y=-353.55;
 		}
-		else if (settings.playerdirection == -45){
+		else if(settings.playerdirection == -45){
 			this.currentAnim = this.anims.forward_left;
 			this.vel.x =-353.55;
 			this.vel.y=-353.55;
 		}
-		else if (settings.playerdirection == 135){
+		else if(settings.playerdirection == 135){
 			this.currentAnim = this.anims.back_right;
 			this.vel.x =353.55;
 			this.vel.y=353.55;
 		}
-		else if (settings.playerdirection == -135){
+		else if(settings.playerdirection == -135){
 			this.currentAnim = this.anims.back_left;
 			this.vel.x =-353.55;
 			this.vel.y=353.55;
