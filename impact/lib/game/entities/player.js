@@ -91,7 +91,7 @@ EntityPlayer = ig.Entity.extend({
 
 		// shoot
 		if( ig.input.pressed('shoot') ) {
-			ig.game.spawnEntity( EntityBullet, this.pos.x, this.pos.y, {flip:this.flip} );
+			ig.game.spawnEntity( EntityBullet, this.pos.x, this.pos.y, {playerdirection:this.playerdirection} );
 		};
 		
 		// set the current animation, based on the player's velocity
@@ -155,32 +155,23 @@ EntityPlayer = ig.Entity.extend({
 			this.currentAnim = this.anims.left_idle;
 		};
 
-
-
-
-		
 		// move!
 		this.parent();
 	}
 });
 
 
-// The grenades a player can throw are NOT in a separate file, because
-// we don't need to be able to place them in Weltmeister. They are just used
-// here in the code.
-
-// Only entities that should be usable in Weltmeister need to be in their own
-// file.
+//This is where we define the bullet entity
 
 
 EntityBullet = ig.Entity.extend({
 	size: {x: 16, y: 16},
 	offset: {x: 2, y: 2},
-	maxVel: {x: 200, y: 200},
+	maxVel: {x: 1000, y: 1000},
 	
 	
 	// The fraction of force with which this entity bounces back in collisions
-	bounciness: 0.6, 
+	bounciness: 0.0, 
 	
 	type: ig.Entity.TYPE.NONE,
 	checkAgainst: ig.Entity.TYPE.B, // Check Against B - our evil enemy group
@@ -193,21 +184,62 @@ EntityBullet = ig.Entity.extend({
 	
 	init: function( x, y, settings ) {
 		this.parent( x, y, settings );
-		
-		this.vel.x = (settings.flip ? -this.maxVel.x : this.maxVel.x);
-		this.vel.y = -50;
-		this.addAnim( 'idle', 0.2, [0,1] );
+		//define all the animations
+		this.addAnim( 'back', 1, [0] );
+		this.addAnim( 'back_left', 1, [1] );
+		this.addAnim( 'left', 1, [2] );
+		this.addAnim( 'forward_left', 1, [3] );
+		this.addAnim( 'forward', 1, [4] );
+		this.addAnim( 'forward_right', 1, [5] );
+		this.addAnim( 'right', 1, [6] );
+		this.addAnim( 'back_right', 1, [7] );
+		//player direction is settings.playerdirection
+		if(settings.playerdirection == 0){
+			this.currentAnim = this.anims.forward;
+			this.vel.x =0;
+			this.vel.y=-500;
+		}
+		else if (settings.playerdirection == 180){
+			this.currentAnim = this.anims.back;
+			this.vel.x =0;
+			this.vel.y=500;
+		}
+		else if (settings.playerdirection == 90){
+			this.currentAnim = this.anims.right;
+			this.vel.x =500;
+			this.vel.y=0;
+		}
+		else if (settings.playerdirection == -90){
+			this.currentAnim = this.anims.left;
+			this.vel.x =-500;
+			this.vel.y=0;
+		}
+		else if (settings.playerdirection == 45){
+			this.currentAnim = this.anims.forward_right;
+			this.vel.x =353.55;
+			this.vel.y=-353.55;
+		}
+		else if (settings.playerdirection == -45){
+			this.currentAnim = this.anims.forward_left;
+			this.vel.x =-353.55;
+			this.vel.y=-353.55;
+		}
+		else if (settings.playerdirection == 135){
+			this.currentAnim = this.anims.back_right;
+			this.vel.x =353.55;
+			this.vel.y=353.55;
+		}
+		else if (settings.playerdirection == -135){
+			this.currentAnim = this.anims.back_left;
+			this.vel.x =-353.55;
+			this.vel.y=353.55;
+		};
 	},
 		
 	handleMovementTrace: function( res ) {
 		this.parent( res );
 		if( res.collision.x || res.collision.y ) {
-			
-			// only bounce 3 times
-			this.bounceCounter++;
-			if( this.bounceCounter > 3 ) {
-				this.kill();
-			}
+			this.kill();
 		}
 	},
 	
