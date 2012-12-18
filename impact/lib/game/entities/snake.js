@@ -16,7 +16,7 @@ EntitySnake = ig.Entity.extend({
 	maxVel: {x: 110, y: 110},
 	friction: {x: 600, y: 600},
 	
-	type: ig.Entity.TYPE.A, // Player friendly group
+	type: ig.Entity.TYPE.B, // Player enemy group
 	checkAgainst: ig.Entity.TYPE.NONE,
 	collides: ig.Entity.COLLIDES.PASSIVE,
 	
@@ -90,58 +90,4 @@ EntitySnake = ig.Entity.extend({
 	}
 });
 
-
-// The grenades a player can throw are NOT in a separate file, because
-// we don't need to be able to place them in Weltmeister. They are just used
-// here in the code.
-
-// Only entities that should be usable in Weltmeister need to be in their own
-// file.
-/*
-EntitySlimeGrenade = ig.Entity.extend({
-	size: {x: 4, y: 4},
-	offset: {x: 2, y: 2},
-	maxVel: {x: 200, y: 200},
-	
-	
-	// The fraction of force with which this entity bounces back in collisions
-	bounciness: 0.6, 
-	
-	type: ig.Entity.TYPE.NONE,
-	checkAgainst: ig.Entity.TYPE.B, // Check Against B - our evil enemy group
-	collides: ig.Entity.COLLIDES.PASSIVE,
-		
-	animSheet: new ig.AnimationSheet( 'media/slime-grenade.png', 8, 8 ),
-	
-	bounceCounter: 0,
-	
-	
-	init: function( x, y, settings ) {
-		this.parent( x, y, settings );
-		
-		this.vel.x = (settings.flip ? -this.maxVel.x : this.maxVel.x);
-		this.vel.y = -50;
-		this.addAnim( 'idle', 0.2, [0,1] );
-	},
-		
-	handleMovementTrace: function( res ) {
-		this.parent( res );
-		if( res.collision.x || res.collision.y ) {
-			
-			// only bounce 3 times
-			this.bounceCounter++;
-			if( this.bounceCounter > 3 ) {
-				this.kill();
-			}
-		}
-	},
-	
-	// This function is called when this entity overlaps anonther entity of the
-	// checkAgainst group. I.e. for this entity, all entities in the B group.
-	check: function( other ) {
-		other.receiveDamage( 10, this );
-		this.kill();
-	}	
-});
-*/
 });

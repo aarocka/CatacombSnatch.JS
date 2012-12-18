@@ -37,6 +37,7 @@ all of the entiteis, server side code, and art assets.
 
 #TODO
 * Build AI
+* Add touch controls
 * Build map
 * Implement sound
 * Fix WebGL
