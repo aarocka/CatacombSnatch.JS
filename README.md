@@ -36,9 +36,13 @@ releasing a baked version of the game along with the full sourcecode for the pag
 all of the entiteis, server side code, and art assets.
 
 #TODO
+* Add death animations
 * Build AI
 * Add touch controls
 * Build map
 * Implement sound
 * Fix WebGL
 * Work on native builds
+* Implement custom level building using html5 storage
+* Make menus
+* Make multiplauer
