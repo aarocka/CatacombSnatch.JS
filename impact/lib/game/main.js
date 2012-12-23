@@ -20,12 +20,24 @@ MyGame = ig.Game.extend({
 	
 	init: function() {
 		// Initialize your game here; bind keys etc.
+		/*
 		ig.input.bind( ig.KEY.LEFT_ARROW, 'left' );
 		ig.input.bind( ig.KEY.RIGHT_ARROW, 'right' );
 		ig.input.bind( ig.KEY.UP_ARROW, 'forward');
 		ig.input.bind( ig.KEY.DOWN_ARROW, 'backwards');
 		ig.input.bind( ig.KEY.C, 'shoot' );
+		*/
 		this.loadLevel(LevelTest);
+		/
+		if (ig.ua.mobile) {
+			var ypos = ig.system.height - 95;
+			this.buttons = [
+				new ig.TouchButton( 'left', 20, ypos, 40, 40, this.buttonImage, 2),
+				new ig.TouchButton( 'right', 60, ypos, 40, 40, this.buttonImage, 3),
+				new ig.TouchButton( 'up', 260, ypos, 40, 40, this.buttonImage, 0),
+				new ig.TouchButton( 'down', 210, ypos, 40, 40, this.buttonImage, 1),
+			];
+		}*/
 
 	},
 	
@@ -58,6 +70,6 @@ MyGame = ig.Game.extend({
 
 // Start the Game with 60fps, a resolution of 320x240, scaled
 // up by a factor of 2
-ig.main( '#canvas', MyGame, 60, 400, 290, 2, ig.ImpactSplashLoader );
+ig.main( '#canvas', MyGame, 30, 400, 290, 2, ig.ImpactSplashLoader );
 
 });
