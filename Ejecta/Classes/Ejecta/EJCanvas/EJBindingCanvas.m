@@ -12,8 +12,6 @@ static int firstCanvasInstance = YES;
 		ejectaInstance = [EJApp instance]; // Keep a local copy - may be faster?
 		scalingMode = kEJScalingModeFitWidth;
 		useRetinaResolution = true;
-		msaaEnabled = false;
-		msaaSamples = 2;
 		
 		// If this is the first canvas instance we created, make it the screen canvas
 		if( firstCanvasInstance ) {
@@ -102,14 +100,14 @@ EJ_BIND_GET(font, ctx) {
 }
 
 EJ_BIND_SET(font, ctx, value) {
-	char string[64]; // Long font names are long
+	char string[32];
 	JSStringRef jsString = JSValueToStringCopy( ctx, value, NULL );
-	JSStringGetUTF8CString(jsString, string, 64);
+	JSStringGetUTF8CString(jsString, string, 32);
 	
 	// Yeah, oldschool!
 	float size = 0;
-	char name[64];
-	sscanf( string, "%fp%*[tx] %63s", &size, name); // matches: 10.5p[tx] helvetica
+	char name[32];
+	sscanf( string, "%fp%*[tx] %31s", &size, name); // matches: 10.5p[tx] helvetica
 	UIFont * newFont = [UIFont fontWithName:[NSString stringWithUTF8String:name] size:size];
 	
 	if( newFont ) {
@@ -122,12 +120,11 @@ EJ_BIND_GET(width, ctx) {
 }
 
 EJ_BIND_SET(width, ctx, value) {
-	short newWidth = JSValueToNumberFast(ctx, value);
-	if( renderingContext && newWidth != width ) {
+	if( renderingContext ) {
 		NSLog(@"Warning: rendering context already created; can't change width");
 		return;
 	}
-	width = newWidth;
+	width = JSValueToNumberFast(ctx, value);
 }
 
 EJ_BIND_GET(height, ctx) {
@@ -135,12 +132,11 @@ EJ_BIND_GET(height, ctx) {
 }
 
 EJ_BIND_SET(height, ctx, value) {
-	short newHeight = JSValueToNumberFast(ctx, value);
-	if( renderingContext && newHeight != height ) {
+	if( renderingContext ) {
 		NSLog(@"Warning: rendering context already created; can't change height");
 		return;
 	}
-	height = newHeight;
+	height = JSValueToNumberFast(ctx, value);
 }
 
 EJ_BIND_GET(offsetLeft, ctx) {
@@ -160,35 +156,11 @@ EJ_BIND_GET(retinaResolutionEnabled, ctx) {
 }
 
 EJ_BIND_SET(imageSmoothingEnabled, ctx, value) {
-	ejectaInstance.currentRenderingContext = renderingContext;
-	renderingContext.imageSmoothingEnabled = JSValueToBoolean(ctx, value);
+	[EJTexture setSmoothScaling:JSValueToBoolean(ctx, value)];
 }
 
 EJ_BIND_GET(imageSmoothingEnabled, ctx) {
-	return JSValueMakeBoolean(ctx, renderingContext.imageSmoothingEnabled);
-}
-
-EJ_BIND_GET(backingStorePixelRatio, ctx) {
-	return JSValueMakeNumber(ctx, renderingContext.backingStoreRatio);
-}
-
-EJ_BIND_SET(MSAAEnabled, ctx, value) {
-	msaaEnabled = JSValueToBoolean(ctx, value);
-}
-
-EJ_BIND_GET(MSAAEnabled, ctx) {
-	return JSValueMakeBoolean(ctx, msaaEnabled);
-}
-
-EJ_BIND_SET(MSAASamples, ctx, value) {
-	int samples = JSValueToNumberFast(ctx, value);
-	if( samples == 2 || samples == 4 ) {
-		msaaSamples	= samples;
-	}
-}
-
-EJ_BIND_GET(MSAASamples, ctx) {
-	return JSValueMakeNumber(ctx, msaaSamples);
+	return JSValueMakeBoolean(ctx, [EJTexture smoothScaling]);
 }
 
 
@@ -212,9 +184,6 @@ EJ_BIND_FUNCTION(getContext, ctx, argc, argv) {
 	else {
 		renderingContext = [[EJCanvasContextTexture alloc] initWithWidth:width height:height];
 	}
-	
-	renderingContext.msaaEnabled = msaaEnabled;
-	renderingContext.msaaSamples = msaaSamples;
 	
 	[renderingContext create];
 	ejectaInstance.currentRenderingContext = renderingContext;
@@ -285,7 +254,6 @@ EJ_BIND_FUNCTION(drawImage, ctx, argc, argv) {
 	
 	NSObject<EJDrawable> * drawable = (NSObject<EJDrawable> *)JSObjectGetPrivate((JSObjectRef)argv[0]);
 	EJTexture * image = drawable.texture;
-	float scale = image.contentScale;
 	
 	short sx = 0, sy = 0, sw = 0, sh = 0;
 	float dx = 0, dy = 0, dw = sw, dh = sh;	
@@ -294,10 +262,8 @@ EJ_BIND_FUNCTION(drawImage, ctx, argc, argv) {
 		// drawImage(image, dx, dy)
 		dx = JSValueToNumberFast(ctx, argv[1]);
 		dy = JSValueToNumberFast(ctx, argv[2]);
-		sw = image.width;
-		sh = image.height;
-		dw = sw / scale;
-		dh = sh / scale;
+		dw = sw = image.width;
+		dh = sh = image.height;
 	}
 	else if( argc == 5 ) {
 		// drawImage(image, dx, dy, dw, dh)
@@ -310,10 +276,10 @@ EJ_BIND_FUNCTION(drawImage, ctx, argc, argv) {
 	}
 	else if( argc >= 9 ) {
 		// drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh)
-		sx = JSValueToNumberFast(ctx, argv[1]) * scale;
-		sy = JSValueToNumberFast(ctx, argv[2]) * scale;
-		sw = JSValueToNumberFast(ctx, argv[3]) * scale;
-		sh = JSValueToNumberFast(ctx, argv[4]) * scale;
+		sx = JSValueToNumberFast(ctx, argv[1]);
+		sy = JSValueToNumberFast(ctx, argv[2]);
+		sw = JSValueToNumberFast(ctx, argv[3]);
+		sh = JSValueToNumberFast(ctx, argv[4]);
 		
 		dx = JSValueToNumberFast(ctx, argv[5]);
 		dy = JSValueToNumberFast(ctx, argv[6]);
@@ -388,14 +354,12 @@ EJ_BIND_FUNCTION(getImageData, ctx, argc, argv) {
 	// Create the JS object
 	JSClassRef imageDataClass = [[EJApp instance] getJSClassForClass:[EJBindingImageData class]];
 	JSObjectRef obj = JSObjectMake( ctx, imageDataClass, NULL );
-	JSValueProtect(ctx, obj);
 	
 	// Create the native instance
 	EJBindingImageData * jsImageData = [[EJBindingImageData alloc] initWithContext:ctx object:obj imageData:imageData];
 	
 	// Attach the native instance to the js object
 	JSObjectSetPrivate( obj, (void *)jsImageData );
-	JSValueUnprotect(ctx, obj);
 	return obj; 
 }
 
@@ -412,14 +376,12 @@ EJ_BIND_FUNCTION(createImageData, ctx, argc, argv) {
 	// Create the JS object
 	JSClassRef imageDataClass = [[EJApp instance] getJSClassForClass:[EJBindingImageData class]];
 	JSObjectRef obj = JSObjectMake( ctx, imageDataClass, NULL );
-	JSValueProtect(ctx, obj);
 	
 	// Create the native instance
 	EJBindingImageData * jsImageData = [[EJBindingImageData alloc] initWithContext:ctx object:obj imageData:imageData];
 	
 	// Attach the native instance to the js object
 	JSObjectSetPrivate( obj, (void *)jsImageData );
-	JSValueUnprotect(ctx, obj);
 	return obj;
 }
 
@@ -447,13 +409,11 @@ EJ_BIND_FUNCTION( closePath, ctx, argc, argv ) {
 }
 
 EJ_BIND_FUNCTION( fill, ctx, argc, argv ) {
-	ejectaInstance.currentRenderingContext = renderingContext;
 	[renderingContext fill];
 	return NULL;
 }
 
 EJ_BIND_FUNCTION( stroke, ctx, argc, argv ) {
-	ejectaInstance.currentRenderingContext = renderingContext;
 	[renderingContext stroke];
 	return NULL;
 }
@@ -544,20 +504,6 @@ EJ_BIND_FUNCTION( arc, ctx, argc, argv ) {
 	return NULL;
 }
 
-EJ_BIND_FUNCTION( measureText, ctx, argc, argv ) {
-	if( argc < 1 ) { return NULL; }
-	
-	NSString * string = JSValueToNSString(ctx, argv[0]);
-	float stringWidth = [renderingContext measureText:string];
-	
-	JSObjectRef objRef = JSObjectMake(ctx, NULL, NULL);
-	JSStringRef stringRef = JSStringCreateWithUTF8CString("width");
-	JSObjectSetProperty(ctx, objRef, stringRef, JSValueMakeNumber(ctx, stringWidth), kJSPropertyAttributeNone, nil);
-	JSStringRelease(stringRef);
-	
-	return objRef;
-}
-
 EJ_BIND_FUNCTION( fillText, ctx, argc, argv ) {
 	if( argc < 3 ) { return NULL; }
 	
@@ -565,8 +511,7 @@ EJ_BIND_FUNCTION( fillText, ctx, argc, argv ) {
 	float
 		x = JSValueToNumberFast(ctx, argv[1]),
 		y = JSValueToNumberFast(ctx, argv[2]);
-	
-	ejectaInstance.currentRenderingContext = renderingContext;
+		
 	[renderingContext fillText:string x:x y:y];
 	return NULL;
 }
@@ -578,27 +523,15 @@ EJ_BIND_FUNCTION( strokeText, ctx, argc, argv ) {
 	float
 		x = JSValueToNumberFast(ctx, argv[1]),
 		y = JSValueToNumberFast(ctx, argv[2]);
-	
-	ejectaInstance.currentRenderingContext = renderingContext;
+		
 	[renderingContext strokeText:string x:x y:y];
-	return NULL;
-}
-
-EJ_BIND_FUNCTION( clip, ctx, argc, argv ) {
-	ejectaInstance.currentRenderingContext = renderingContext;
-	[renderingContext clip];
-	return NULL;
-}
-
-EJ_BIND_FUNCTION( resetClip, ctx, argc, argv ) {
-	ejectaInstance.currentRenderingContext = renderingContext;
-	[renderingContext resetClip];
 	return NULL;
 }
 
 EJ_BIND_FUNCTION_NOT_IMPLEMENTED( createRadialGradient );
 EJ_BIND_FUNCTION_NOT_IMPLEMENTED( createLinearGradient );
 EJ_BIND_FUNCTION_NOT_IMPLEMENTED( createPattern );
+EJ_BIND_FUNCTION_NOT_IMPLEMENTED( clip );
 EJ_BIND_FUNCTION_NOT_IMPLEMENTED( isPointInPath );
 
 @end

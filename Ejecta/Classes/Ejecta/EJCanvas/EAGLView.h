@@ -5,8 +5,13 @@
 #import <OpenGLES/ES2/gl.h>
 #import <OpenGLES/ES2/glext.h>
 
-@interface EAGLView : UIView
+@interface EAGLView : UIView {
+    EAGLContext * context;
+}
 
 - (id)initWithFrame:(CGRect)frame contentScale:(float)contentScale;
+- (void)resetContext;
+
+@property (nonatomic, retain) EAGLContext *context;
 
 @end

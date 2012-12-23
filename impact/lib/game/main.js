@@ -28,7 +28,7 @@ MyGame = ig.Game.extend({
 		ig.input.bind( ig.KEY.C, 'shoot' );
 		*/
 		this.loadLevel(LevelTest);
-		/
+		/*
 		if (ig.ua.mobile) {
 			var ypos = ig.system.height - 95;
 			this.buttons = [

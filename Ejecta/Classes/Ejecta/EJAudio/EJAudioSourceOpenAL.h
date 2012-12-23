@@ -2,15 +2,16 @@
 
 #import <OpenAL/al.h>
 #import <OpenAL/alc.h>
+#import <AudioToolbox/AudioToolbox.h>
+#import <AudioToolbox/ExtendedAudioFile.h>
 
 #import "EJAudioSource.h"
-#import "EJOpenALManager.h"
-#import "EJOpenALBuffer.h"
 
 @interface EJAudioSourceOpenAL : NSObject <EJAudioSource> {
 	NSString * path;
-	unsigned int sourceId;
-	EJOpenALBuffer * buffer;
+	NSUInteger bufferId, sourceId;
 }
+
+- (void*)getAudioDataWithURL:(NSURL *)inFileURL size:(ALsizei *)outDataSize format:(ALenum *)outDataFormat rate:(ALsizei *)outSampleRate;
 
 @end

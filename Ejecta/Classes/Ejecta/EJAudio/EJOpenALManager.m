@@ -3,7 +3,7 @@
 
 @implementation EJOpenALManager
 
-@synthesize buffers;
+@synthesize sources;
 
 
 static EJOpenALManager * openALManagerInstance = NULL;
@@ -17,7 +17,7 @@ static EJOpenALManager * openALManagerInstance = NULL;
 
 -(id)init {
 	if( self = [super init] ) {
-		buffers = [[NSMutableDictionary alloc] init];
+		sources = [[NSMutableDictionary alloc] init];
 		device = alcOpenDevice(NULL);
 		if( device ) {
 			context = alcCreateContext( device, NULL );

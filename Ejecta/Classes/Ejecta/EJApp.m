@@ -48,7 +48,6 @@ JSObjectRef ej_callAsConstructor(JSContextRef ctx, JSObjectRef constructor, size
 @implementation EJApp
 @synthesize landscapeMode;
 @synthesize jsGlobalContext;
-@synthesize glContext;
 @synthesize window;
 @synthesize touchDelegate;
 
@@ -87,11 +86,9 @@ static EJApp * ejectaInstance = NULL;
 		paused = false;
 		internalScaling = 1;
 		
-		// Limit all background operations (image & sound loading) to one thread
-		opQueue = [[NSOperationQueue alloc] init];
-		opQueue.maxConcurrentOperationCount = 1;
 		
-		timers = [[EJTimerCollection alloc] init];
+		opQueue = [[NSOperationQueue alloc] init];
+		timers = [[NSMutableDictionary alloc] init];
 		
 		displayLink = [[CADisplayLink displayLinkWithTarget:self selector:@selector(run:)] retain];
 		[displayLink setFrameInterval:1];
@@ -122,10 +119,6 @@ static EJApp * ejectaInstance = NULL;
 			kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly, NULL
 		);
 		
-		// Create the OpenGL ES1 Context
-		glContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1];
-		[EAGLContext setCurrentContext:glContext];
-		
 		// Load the initial JavaScript source files
 		[self loadScriptAtPath:EJECTA_BOOT_JS];
 		[self loadScriptAtPath:EJECTA_MAIN_JS];
@@ -136,15 +129,12 @@ static EJApp * ejectaInstance = NULL;
 
 - (void)dealloc {
 	JSGlobalContextRelease(jsGlobalContext);
-	[currentRenderingContext release];
 	[touchDelegate release];
 	[jsClasses release];
 	[opQueue release];
 	
-	[displayLink invalidate];
 	[displayLink release];
 	[timers release];
-	[glContext release];
 	[super dealloc];
 }
 
@@ -171,7 +161,7 @@ static EJApp * ejectaInstance = NULL;
 	// Deprecated in iOS6 - supportedInterfaceOrientations is the new way to do this
 	// We just use the mask returned by supportedInterfaceOrientations here to check if
 	// this particular orientation is allowed.
-	return (self.supportedInterfaceOrientations & (1 << orientation) );
+	return (self.supportedInterfaceOrientations & orientation);
 }
 
 
@@ -182,30 +172,32 @@ static EJApp * ejectaInstance = NULL;
 	if( paused ) { return; }
 
 	// Check all timers
-	[timers update];
+	currentTime = [NSDate timeIntervalSinceReferenceDate];
+	for( NSNumber *timerId in [timers allKeys]) {
+	
+		EJTimer * timer = [timers objectForKey:timerId];
+		[timer check:currentTime];
+		
+		if( !timer.active ) {
+			[timers removeObjectForKey:timerId];
+		}		
+	}
 	
 	// Redraw the canvas
-	self.currentRenderingContext = screenRenderingContext;
 	[screenRenderingContext present];
 }
 
 
 - (void)pause {
 	[displayLink removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-	[screenRenderingContext finish];
 	paused = true;
 }
 
 
 - (void)resume {
-	[EAGLContext setCurrentContext:glContext];
+	[screenRenderingContext resetGLContext];
 	[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	paused = false;
-}
-
-
-- (void)clearCaches {
-	JSGarbageCollect(jsGlobalContext);
 }
 
 
@@ -286,20 +278,17 @@ static EJApp * ejectaInstance = NULL;
 // Touch handlers
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
-	[touchDelegate triggerEvent:@"touchstart" withChangedTouches:touches allTouches:[event allTouches]];
+	[touchDelegate touchesBegan:touches withEvent:event];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
-	[touchDelegate triggerEvent:@"touchend" withChangedTouches:touches allTouches:[event allTouches]];
-}
-
-- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
-	[touchDelegate triggerEvent:@"touchend" withChangedTouches:touches allTouches:[event allTouches]];
+	[touchDelegate touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
-	[touchDelegate triggerEvent:@"touchmove" withChangedTouches:touches allTouches:[event allTouches]];
+	[touchDelegate touchesMoved:touches withEvent:event];
 }
+
 
 
 // ---------------------------------------------------------------------------------
@@ -310,31 +299,36 @@ static EJApp * ejectaInstance = NULL;
 		return NULL;
 	}
 	
+	uniqueId++;
 	JSObjectRef func = JSValueToObject(ctxp, argv[0], NULL);
 	float interval = JSValueToNumberFast(ctxp, argv[1])/1000;
 	
-	// Make sure short intervals (< 18ms) run each frame
-	if( interval < 0.018 ) {
+	// Make sure short intervals (< 34ms) run each frame
+	if( interval < 0.034 ) {
 		interval = 0;
 	}
 	
-	int timerId = [timers scheduleCallback:func interval:interval repeat:repeat];
-	return JSValueMakeNumber( ctxp, timerId );
+	EJTimer * timer = [[EJTimer alloc] initWithCurrentTime:currentTime interval:interval callback:func repeat:repeat];
+	[timers setObject:timer forKey:[NSNumber numberWithInt:uniqueId]];
+	[timer release];
+	
+	return JSValueMakeNumber( ctxp, uniqueId );
 }
 
 - (JSValueRef)deleteTimer:(JSContextRef)ctxp argc:(size_t)argc argv:(const JSValueRef [])argv {
 	if( argc != 1 || !JSValueIsNumber(ctxp, argv[0]) ) return NULL;
 	
-	[timers cancelId:JSValueToNumberFast(ctxp, argv[0])];
+	NSNumber * timerId = [NSNumber numberWithInt:(int)JSValueToNumberFast(ctxp, argv[0])];
+	[timers removeObjectForKey:timerId];
+	
 	return NULL;
 }
 
 - (void)setCurrentRenderingContext:(EJCanvasContext *)renderingContext {
 	if( renderingContext != currentRenderingContext ) {
 		[currentRenderingContext flushBuffers];
-		[currentRenderingContext release];
 		[renderingContext prepare];
-		currentRenderingContext = [renderingContext retain];
+		currentRenderingContext = renderingContext;
 	}
 }
 

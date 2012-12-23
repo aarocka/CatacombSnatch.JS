@@ -1,15 +1,12 @@
 #import <Foundation/Foundation.h>
 #import "EJBindingEventedBase.h"
 
-#define EJ_TOUCH_INPUT_MAX_TOUCHES 5
+#define EJ_TOUCH_MAX_CALLBACK_PARAMS 24 // Max 8 touches, 3 args per touch
+@interface EJBindingTouchInput : EJBindingEventedBase <TouchDelegate>
 
-@interface EJBindingTouchInput : EJBindingEventedBase <EJTouchDelegate> {
-	JSStringRef jsLengthName;
-	JSStringRef jsIdentifierName, jsPageXName, jsPageYName, jsClientXName, jsClientYName;
-	JSObjectRef jsAllTouches, jsChangedTouches;
-	JSObjectRef jsTouchesPool[EJ_TOUCH_INPUT_MAX_TOUCHES];
-}
-
-- (void)triggerEvent:(NSString *)name withChangedTouches:(NSSet *)changed allTouches:(NSSet *)all;
+- (void)triggerEvent:(NSString *)name withTouches:(NSSet *)touches;
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event;
 
 @end

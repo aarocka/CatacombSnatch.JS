@@ -1,5 +1,4 @@
 #import "EJCanvasContext.h"
-#import "EJFont.h"
 
 @implementation EJCanvasContext
 
@@ -7,9 +6,6 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 
 
 @synthesize state;
-@synthesize backingStoreRatio;
-@synthesize msaaEnabled, msaaSamples;
-@synthesize imageSmoothingEnabled;
 
 - (id)initWithWidth:(short)widthp height:(short)heightp {
 	if( self = [super init] ) {
@@ -27,60 +23,36 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 		state->textBaseline = kEJTextBaselineAlphabetic;
 		state->textAlign = kEJTextAlignStart;
 		state->font = [[UIFont fontWithName:@"Helvetica" size:10] retain];
-		state->clipPath = nil;
 		
-		bufferWidth = viewportWidth = width = widthp;
-		bufferHeight = viewportHeight = height = heightp;
+		viewportWidth = width = widthp;
+		viewportHeight = height = heightp;
 		
 		path = [[EJPath alloc] init];
-		backingStoreRatio = 1;
-		
-		fontCache = [[NSCache alloc] init];
-		fontCache.countLimit = 8;
-		
-		imageSmoothingEnabled = YES;
-		msaaEnabled = NO;
-		msaaSamples = 2;
 	}
 	return self;
 }
 
 - (void)dealloc {
-	[fontCache release];
-	
-	// Release all fonts and clip paths from the stack
+	// Release all fonts from the stack
 	for( int i = 0; i < stateIndex + 1; i++ ) {
 		[stateStack[i].font release];
-		[stateStack[i].clipPath release];
 	}
 	
-	if( viewFrameBuffer ) { glDeleteFramebuffers( 1, &viewFrameBuffer); }
-	if( viewRenderBuffer ) { glDeleteRenderbuffers(1, &viewRenderBuffer); }
-	if( msaaFrameBuffer ) {	glDeleteFramebuffers( 1, &msaaFrameBuffer); }
-	if( msaaRenderBuffer ) { glDeleteRenderbuffers(1, &msaaRenderBuffer); }
-	if( stencilBuffer ) { glDeleteRenderbuffers(1, &stencilBuffer); }
-	
+	if( stencilBuffer ) {
+		glDeleteRenderbuffers(1, &stencilBuffer);
+	}
+	if( frameBuffer ) {
+		glDeleteFramebuffers( 1, &frameBuffer);
+	}
 	[path release];
+	[lineTexture16 release];
+	[lineTexture4 release];
 	[super dealloc];
 }
 
 - (void)create {
-	if( msaaEnabled ) {
-		glGenFramebuffers(1, &msaaFrameBuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, msaaFrameBuffer);
-		
-		glGenRenderbuffers(1, &msaaRenderBuffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, msaaRenderBuffer);
-		
-		glRenderbufferStorageMultisampleAPPLE(GL_RENDERBUFFER, msaaSamples, GL_RGBA8_OES, bufferWidth, bufferHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, msaaRenderBuffer);
-	}
-	
-	glGenFramebuffers(1, &viewFrameBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, viewFrameBuffer);
-	
-	glGenRenderbuffers(1, &viewRenderBuffer);
-	glBindRenderbuffer(GL_RENDERBUFFER, viewRenderBuffer);
+	glGenFramebuffersOES(1, &frameBuffer);
+	glBindFramebufferOES(GL_FRAMEBUFFER_OES, frameBuffer);
 }
 
 - (void)createStencilBufferOnce {
@@ -88,18 +60,10 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	
 	glGenRenderbuffers(1, &stencilBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, stencilBuffer);
-	if( msaaEnabled ) {
-		glRenderbufferStorageMultisampleAPPLE(GL_RENDERBUFFER, msaaSamples, GL_DEPTH24_STENCIL8_OES, bufferWidth, bufferHeight);
-	}
-	else {
-		glRenderbufferStorageOES(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, bufferWidth, bufferHeight);
-	}
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, viewportWidth, viewportHeight);
+	
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, stencilBuffer);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, stencilBuffer);
-	
-	glBindRenderbuffer(GL_RENDERBUFFER, msaaEnabled ? msaaRenderBuffer : viewRenderBuffer );
-	
-	glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 - (void)bindVertexBuffer {
@@ -114,8 +78,7 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 
 - (void)prepare {
 	// Bind the frameBuffer and vertexBuffer array
-	glBindFramebuffer(GL_FRAMEBUFFER, msaaEnabled ? msaaFrameBuffer : viewFrameBuffer );
-	glBindRenderbuffer(GL_RENDERBUFFER, msaaEnabled ? msaaRenderBuffer : viewRenderBuffer );
+	glBindFramebufferOES(GL_FRAMEBUFFER_OES, frameBuffer);
 	
 	glViewport(0, 0, viewportWidth, viewportHeight);
 	
@@ -130,16 +93,8 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	glBlendFunc( EJCompositeOperationFuncs[op].source, EJCompositeOperationFuncs[op].destination );
 	glDisable(GL_TEXTURE_2D);
 	currentTexture = nil;
-	[EJTexture setSmoothScaling:imageSmoothingEnabled];
 	
 	[self bindVertexBuffer];
-	
-	if( state->clipPath ) {
-		glDepthFunc(GL_EQUAL);
-	}
-	else {
-		glDepthFunc(GL_ALWAYS);
-	}
 }
 
 - (void)setTexture:(EJTexture *)newTexture {
@@ -160,58 +115,17 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	[currentTexture bind];
 }
 
-- (void)pushTriX1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2
-			   x3:(float)x3 y3:(float)y3
-			color:(EJColorRGBA)color
-	withTransform:(CGAffineTransform)transform
-{
-	if( vertexBufferIndex >= EJ_CANVAS_VERTEX_BUFFER_SIZE - 3 ) {
+- (void)pushTris:(EJTris)tris {
+	if( vertexBufferIndex >= EJ_CANVAS_VERTEX_BUFFER_SIZE - 3) {
 		[self flushBuffers];
 	}
 	
-	EJVector2 d1 = { x1, y1 };
-	EJVector2 d2 = { x2, y2 };
-	EJVector2 d3 = { x3, y3 };
+	tris.v1.pos = EJVector2ApplyTransform(tris.v1.pos, state->transform);
+	tris.v2.pos = EJVector2ApplyTransform(tris.v2.pos, state->transform);
+	tris.v3.pos = EJVector2ApplyTransform(tris.v3.pos, state->transform);
 	
-	if( !CGAffineTransformIsIdentity(transform) ) {
-		d1 = EJVector2ApplyTransform( d1, transform );
-		d2 = EJVector2ApplyTransform( d2, transform );
-		d3 = EJVector2ApplyTransform( d3, transform );
-	}
-	
-	EJVertex * vb = &CanvasVertexBuffer[vertexBufferIndex];
-	vb[0] = (EJVertex) { d1, {0.5, 1}, color };
-	vb[1] = (EJVertex) { d2, {0.5, 0.5}, color };
-	vb[2] = (EJVertex) { d3, {0.5, 1}, color };
-	
+	*(EJTris *)&CanvasVertexBuffer[vertexBufferIndex] = tris;
 	vertexBufferIndex += 3;
-}
-
-- (void)pushQuadV1:(EJVector2)v1 v2:(EJVector2)v2 v3:(EJVector2)v3 v4:(EJVector2)v4
-	t1:(EJVector2)t1 t2:(EJVector2)t2 t3:(EJVector2)t3 t4:(EJVector2)t4
-	color:(EJColorRGBA)color
-	withTransform:(CGAffineTransform)transform
-{
-	if( vertexBufferIndex >= EJ_CANVAS_VERTEX_BUFFER_SIZE - 6 ) {
-		[self flushBuffers];
-	}
-	
-	if( !CGAffineTransformIsIdentity(transform) ) {
-		v1 = EJVector2ApplyTransform( v1, transform );
-		v2 = EJVector2ApplyTransform( v2, transform );
-		v3 = EJVector2ApplyTransform( v3, transform );
-		v4 = EJVector2ApplyTransform( v4, transform );
-	}
-	
-	EJVertex * vb = &CanvasVertexBuffer[vertexBufferIndex];
-	vb[0] = (EJVertex) { v1, t1, color };
-	vb[1] = (EJVertex) { v2, t2, color };
-	vb[2] = (EJVertex) { v3, t3, color };
-	vb[3] = (EJVertex) { v2, t2, color };
-	vb[4] = (EJVertex) { v3, t3, color };
-	vb[5] = (EJVertex) { v4, t4, color };
-	
-	vertexBufferIndex += 6;
 }
 
 - (void)pushRectX:(float)x y:(float)y w:(float)w h:(float)h
@@ -223,17 +137,10 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 		[self flushBuffers];
 	}
 	
-	EJVector2 d11 = { x, y };
-	EJVector2 d21 = { x+w, y };
-	EJVector2 d12 = { x, y+h };
-	EJVector2 d22 = { x+w, y+h };
-	
-	if( !CGAffineTransformIsIdentity(transform) ) {
-		d11 = EJVector2ApplyTransform( d11, transform );
-		d21 = EJVector2ApplyTransform( d21, transform );
-		d12 = EJVector2ApplyTransform( d12, transform );
-		d22 = EJVector2ApplyTransform( d22, transform );
-	}
+	EJVector2 d11 = EJVector2ApplyTransform( EJVector2Make(x, y), transform );
+	EJVector2 d21 = EJVector2ApplyTransform( EJVector2Make(x+w, y), transform );
+	EJVector2 d12 = EJVector2ApplyTransform( EJVector2Make(x, y+h), transform );
+	EJVector2 d22 = EJVector2ApplyTransform( EJVector2Make(x+w, y+h), transform );
 	
 	EJVertex * vb = &CanvasVertexBuffer[vertexBufferIndex];
 	vb[0] = (EJVertex) { d11, {tx, ty}, color };	// top left
@@ -252,12 +159,6 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	
 	glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndex);
 	vertexBufferIndex = 0;
-}
-
-- (void)setImageSmoothingEnabled:(BOOL)enabled {
-	[self setTexture:NULL];
-	imageSmoothingEnabled = enabled;
-	[EJTexture setSmoothScaling:enabled];
 }
 
 - (void)setGlobalCompositeOperation:(EJCompositeOperation)op {
@@ -285,12 +186,10 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 		NSLog(@"Warning: EJ_CANVAS_STATE_STACK_SIZE (%d) reached", EJ_CANVAS_STATE_STACK_SIZE);
 		return;
 	}
-	
 	stateStack[stateIndex+1] = stateStack[stateIndex];
 	stateIndex++;
 	state = &stateStack[stateIndex];
 	[state->font retain];
-	[state->clipPath retain];
 }
 
 - (void)restore {
@@ -298,59 +197,37 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 		NSLog(@"Warning: Can't pop stack at index 0");
 		return;
 	}
-	
 	EJCompositeOperation oldCompositeOp = state->globalCompositeOperation;
-	EJPath * oldClipPath = state->clipPath;
 	
-	// Clean up current state
-	[state->font release];
-
-	if( state->clipPath && state->clipPath != stateStack[stateIndex-1].clipPath ) {
-		[self resetClip];
-	}
-	[state->clipPath release];
-	
-	// Load state from stack
+	[path reset];
 	stateIndex--;
 	state = &stateStack[stateIndex];
+	[state->font release];
 	
-    path.transform = state->transform;
-    
-	// Set Composite op, if different
 	if( state->globalCompositeOperation != oldCompositeOp ) {
 		self.globalCompositeOperation = state->globalCompositeOperation;
-	}
-	
-	// Render clip path, if present and different
-	if( state->clipPath && state->clipPath != oldClipPath ) {
-		[state->clipPath drawPolygonsToContext:self target:kEJPathPolygonTargetDepth];
 	}
 }
 
 - (void)rotate:(float)angle {
 	state->transform = CGAffineTransformRotate( state->transform, angle );
-    path.transform = state->transform;
 }
 
 - (void)translateX:(float)x y:(float)y {
 	state->transform = CGAffineTransformTranslate( state->transform, x, y );
-    path.transform = state->transform;
 }
 
 - (void)scaleX:(float)x y:(float)y {
 	state->transform = CGAffineTransformScale( state->transform, x, y );
-	path.transform = state->transform;
 }
 
 - (void)transformM11:(float)m11 m12:(float)m12 m21:(float)m21 m22:(float)m22 dx:(float)dx dy:(float)dy {
 	CGAffineTransform t = CGAffineTransformMake( m11, m12, m21, m22, dx, dy );
-	state->transform = CGAffineTransformConcat( t, state->transform );
-	path.transform = state->transform;
+	state->transform = CGAffineTransformConcat( state->transform, t );
 }
 
 - (void)setTransformM11:(float)m11 m12:(float)m12 m21:(float)m21 m22:(float)m22 dx:(float)dx dy:(float)dy {
 	state->transform = CGAffineTransformMake( m11, m12, m21, m22, dx, dy );
-	path.transform = state->transform;
 }
 
 - (void)drawImage:(EJTexture *)texture sx:(float)sx sy:(float)sy sw:(float)sw sh:(float)sh dx:(float)dx dy:(float)dy dw:(float)dw dh:(float)dh {
@@ -369,34 +246,19 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	EJColorRGBA color = state->fillColor;
 	color.rgba.a = (float)color.rgba.a * state->globalAlpha;
 	[self pushRectX:x y:y w:w h:h tx:0 ty:0 tw:0 th:0 color:color withTransform:state->transform];
+	[self flushBuffers];
 }
 
 - (void)strokeRectX:(float)x y:(float)y w:(float)w h:(float)h {
-	// strokeRect should not affect the current path, so we create
-	// a new, tempPath instead.
-	EJPath * tempPath = [[EJPath alloc] init];
-	tempPath.transform = state->transform;
-	
-	[tempPath moveToX:x y:y];
-	[tempPath lineToX:x+w y:y];
-	[tempPath lineToX:x+w y:y+h];
-	[tempPath lineToX:x y:y+h];
-	[tempPath close];
-	
-	[tempPath drawLinesToContext:self];
-	[tempPath release];
+	[self rectX:x y:y w:w h:h];
+	[self stroke];
 }
 
 - (void)clearRectX:(float)x y:(float)y w:(float)w h:(float)h {
 	[self setTexture:NULL];
 	
-	EJCompositeOperation oldOp = state->globalCompositeOperation;
-	self.globalCompositeOperation = kEJCompositeOperationDestinationOut;
-	
-	static EJColorRGBA white = {.hex = 0xffffffff};
-	[self pushRectX:x y:y w:w h:h tx:0 ty:0 tw:0 th:0 color:white withTransform:state->transform];
-	
-	self.globalCompositeOperation = oldOp;
+	static EJColorRGBA black = {.hex = 0x000000ff};
+	[self pushRectX:x y:y w:w h:h tx:0 ty:0 tw:0 th:0 color:black withTransform:state->transform];
 }
 
 - (EJImageData*)getImageDataSx:(float)sx sy:(float)sy sw:(float)sw sh:(float)sh {
@@ -420,6 +282,30 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	[self flushBuffers];
 }
 
+
+- (void)setLineTextureForWidth:(float)projectedWidth {
+
+	// Load the line textures if we don't have them already
+	if( projectedWidth >= 1 && (!lineTexture16 || !lineTexture4) ) {
+		NSString * texturePath16 = [[NSBundle mainBundle] pathForResource:@"line16px" ofType:@"png"];
+		lineTexture16 = [[EJTexture alloc] initWithPath:texturePath16];
+		
+		NSString * texturePath4 = [[NSBundle mainBundle] pathForResource:@"line4px" ofType:@"png"];
+		lineTexture4 = [[EJTexture alloc] initWithPath:texturePath4];
+	}
+	
+	if( projectedWidth > 4 ) {
+		[self setTexture:lineTexture16];
+	}
+	else if( projectedWidth >= 1 ) {
+		[self setTexture:lineTexture4];
+	}
+	else {
+		// Nothing we can do to make < 1px lines look non-crappy; disable texturing
+		[self setTexture:NULL];
+	}
+}
+
 - (void)beginPath {
 	[path reset];
 }
@@ -429,7 +315,7 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 }
 
 - (void)fill {	
-	[path drawPolygonsToContext:self target:kEJPathPolygonTargetColor];
+	[path drawPolygonsToContext:self];
 }
 
 - (void)stroke {
@@ -473,52 +359,49 @@ EJVertex CanvasVertexBuffer[EJ_CANVAS_VERTEX_BUFFER_SIZE];
 	[path arcX:x y:y radius:radius startAngle:startAngle endAngle:endAngle antiClockwise:antiClockwise];
 }
 
-- (EJFont*)acquireFont:(NSString*)fontName size:(float)pointSize fill:(BOOL)fill contentScale:(float)contentScale {
-	NSString * cacheKey = [NSString stringWithFormat:@"%@_%.2f_%d_%.2f", fontName, pointSize, fill, contentScale];
-	EJFont * font = [fontCache objectForKey:cacheKey];
-	if( !font ) {
-		font = [[EJFont alloc] initWithFont:fontName size:pointSize fill:fill contentScale:contentScale];
-		[fontCache setObject:font forKey:cacheKey];
-		[font autorelease];
+- (void)drawText:(NSString *)text x:(float)x y:(float)y fill:(BOOL)fill {
+	// TODO: cache the textures somewhere?
+	EJTexture * texture = [[[EJTexture alloc] initWithString:text font:state->font fill:fill lineWidth:state->lineWidth] autorelease];
+	float tw = texture.realWidth;
+	float th = texture.realHeight;
+	
+	// Figure out the x position with the current textAlign.
+	if( state->textAlign == kEJTextAlignRight || state->textAlign == kEJTextAlignEnd ) {
+		x -= texture.width;
 	}
-	return font;
+	else if( state->textAlign == kEJTextAlignCenter ) {
+		x -= texture.width/2;
+	}
+	
+	// Figure out the y position with the current textBaseline
+	switch( state->textBaseline ) {
+		case kEJTextBaselineAlphabetic:
+		case kEJTextBaselineIdeographic:
+			y -= state->font.ascender; break;
+			
+		case kEJTextBaselineTop:
+		case kEJTextBaselineHanging:
+			y -= (state->font.ascender - state->font.capHeight); break;
+				
+		case kEJTextBaselineMiddle:
+			y -= (state->font.ascender - state->font.xHeight/2); break;
+		
+		case kEJTextBaselineBottom:
+			y -= (state->font.ascender - state->font.descender); break;
+	}
+	
+	EJColorRGBA color = fill ? state->fillColor : state->strokeColor;
+	color.rgba.a = (float)color.rgba.a * state->globalAlpha;
+	[self setTexture:texture];
+	[self pushRectX:x y:y w:tw h:th tx:0 ty:0 tw:1 th:1 color:color withTransform:state->transform];
 }
 
 - (void)fillText:(NSString *)text x:(float)x y:(float)y {
-	EJFont *font = [self acquireFont:state->font.fontName size:state->font.pointSize fill:YES contentScale:backingStoreRatio];
-	[font drawString:text toContext:self x:x y:y];
+	[self drawText:text x:x y:y fill:YES];
 }
 
 - (void)strokeText:(NSString *)text x:(float)x y:(float)y {
-	EJFont *font = [self acquireFont:state->font.fontName size:state->font.pointSize fill:NO contentScale:backingStoreRatio];
-	[font drawString:text toContext:self x:x y:y];
-}
-
-- (float)measureText:(NSString *)text {
-	EJFont *font = [self acquireFont:state->font.fontName size:state->font.pointSize fill:YES contentScale:backingStoreRatio];
-	return [font measureString:text];
-}
-
-- (void)clip {
-	[self flushBuffers];
-	[state->clipPath release];
-	state->clipPath = nil;
-	
-	state->clipPath = [path copy];
-	[state->clipPath drawPolygonsToContext:self target:kEJPathPolygonTargetDepth];
-}
-
-- (void)resetClip {
-	if( state->clipPath ) {
-		[self flushBuffers];
-		[state->clipPath release];
-		state->clipPath = nil;
-		
-		glDepthMask(GL_TRUE);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glDepthMask(GL_FALSE);
-		glDepthFunc(GL_ALWAYS);
-	}
+	[self drawText:text x:x y:y fill:NO];
 }
 
 @end

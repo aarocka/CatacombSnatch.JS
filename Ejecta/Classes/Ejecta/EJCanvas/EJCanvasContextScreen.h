@@ -14,10 +14,11 @@ typedef enum {
 	BOOL useRetinaResolution;
 	UIDeviceOrientation orientation;
 	EJScalingMode scalingMode;
+	float backingStoreRatio;
 }
 
 - (void)present;
-- (void)finish;
+- (void)resetGLContext;
 
 @property (nonatomic) BOOL useRetinaResolution;
 @property (nonatomic) EJScalingMode scalingMode;

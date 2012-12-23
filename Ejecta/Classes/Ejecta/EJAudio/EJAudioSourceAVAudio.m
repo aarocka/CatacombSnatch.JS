@@ -8,7 +8,6 @@
 - (id)initWithPath:(NSString *)pathp {
 	if( self = [super init] ) {
 		path = [pathp retain];
-		player = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:nil];
 	}
 	return self;
 }
@@ -21,14 +20,23 @@
 }
 
 - (void)setDelegate:(NSObject<AVAudioPlayerDelegate> *)delegatep {
-	player.delegate = delegatep;
+	delegate = delegatep;
+	if( player ) {
+		player.delegate = delegate;
+	}
 }
 
-- (NSObject<AVAudioPlayerDelegate> *)delegate {
-	return player.delegate;
+- (void)load {
+	if( player || !path ) return; // already loaded or no path set?
+	
+	player = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:nil];
+	if( delegate ) {
+		player.delegate = delegate;
+	}
 }
 
 - (void)play {
+	[self load];
 	[player play];
 }
 
@@ -49,7 +57,12 @@
 }
 
 - (void)setCurrentTime:(float)time {
-	player.currentTime = time;
+	if( time == 0 ) {
+		[player stop];
+	}
+	else {
+		player.currentTime = time;
+	}
 }
 
 @end

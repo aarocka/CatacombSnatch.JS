@@ -3,17 +3,19 @@
 #import "JavaScriptCore/JavaScriptCore.h"
 #import "EJConvert.h"
 
-#define EJECTA_VERSION @"1.2"
+#define EJECTA_VERSION @"1.0"
 #define EJECTA_APP_FOLDER @"App/"
 
 #define EJECTA_BOOT_JS @"../ejecta.js"
 #define EJECTA_MAIN_JS @"index.js"
 
-@protocol EJTouchDelegate
-- (void)triggerEvent:(NSString *)name withChangedTouches:(NSSet *)changed allTouches:(NSSet *)all;
+@protocol TouchDelegate
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event;
 @end
 
-@class EJTimerCollection;
+
 @class EJCanvasContext;
 @class EJCanvasContextScreen;
 
@@ -24,12 +26,12 @@
 	UIWindow * window;
 	NSMutableDictionary * jsClasses;
 	UIImageView * loadingScreen;
-	NSObject<EJTouchDelegate> * touchDelegate;
+	NSObject<TouchDelegate> * touchDelegate;
 	
-	EJTimerCollection * timers;
+	int uniqueId;
+	NSMutableDictionary * timers;
 	NSTimeInterval currentTime;
 	
-	EAGLContext * glContext;
 	CADisplayLink * displayLink;
 	
 	NSOperationQueue * opQueue;
@@ -44,7 +46,6 @@
 - (void)run:(CADisplayLink *)sender;
 - (void)pause;
 - (void)resume;
-- (void)clearCaches;
 - (NSString *)pathForResource:(NSString *)resourcePath;
 - (JSValueRef)createTimer:(JSContextRef)ctx argc:(size_t)argc argv:(const JSValueRef [])argv repeat:(BOOL)repeat;
 - (JSValueRef)deleteTimer:(JSContextRef)ctx argc:(size_t)argc argv:(const JSValueRef [])argv;
@@ -61,9 +62,8 @@
 
 @property (nonatomic, readonly) BOOL landscapeMode;
 @property (nonatomic, readonly) JSGlobalContextRef jsGlobalContext;
-@property (nonatomic, readonly) EAGLContext * glContext;
 @property (nonatomic, readonly) UIWindow * window;
-@property (nonatomic, retain) NSObject<EJTouchDelegate> * touchDelegate;
+@property (nonatomic, retain) NSObject<TouchDelegate> * touchDelegate;
 
 @property (nonatomic, readonly) NSOperationQueue * opQueue;
 @property (nonatomic, assign) EJCanvasContext * currentRenderingContext;

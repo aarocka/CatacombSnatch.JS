@@ -5,28 +5,25 @@
 
 @implementation EJTexture
 
-// Textures check this global filter state when binding
-static GLint EJTextureGlobalFilter = GL_LINEAR;
+static GLint textureFilter = GL_LINEAR;
 
 + (BOOL)smoothScaling {
-	return (EJTextureGlobalFilter == GL_LINEAR); 
+	return (textureFilter == GL_LINEAR); 
 }
 
-+ (void)setSmoothScaling:(BOOL)smoothScaling {
-	EJTextureGlobalFilter = smoothScaling ? GL_LINEAR : GL_NEAREST; 
++ (void)setSmoothScaling:(BOOL)smoothScaling { 
+	textureFilter = smoothScaling ? GL_LINEAR : GL_NEAREST; 
 }
 
 
 
-@synthesize contentScale;
 @synthesize textureId;
 @synthesize width, height, realWidth, realHeight;
 
 - (id)initWithPath:(NSString *)path {
-	// For loading on the main thread (blocking)
+	// Load directly (blocking)
 	
 	if( self = [super init] ) {
-		contentScale = 1;
 		fullPath = [path retain];
 		GLubyte * pixels = [self loadPixelsFromPath:path];
 		[self createTextureWithPixels:pixels format:GL_RGBA];
@@ -36,31 +33,23 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	return self;
 }
 
-- (id)initWithPath:(NSString *)path sharegroup:(EAGLSharegroup*)sharegroup {
-	// For loading in a background thread
+- (id)initWithPath:(NSString *)path context:(EAGLContext*)context {
+	// Load in a low-priority thread (non-blocking)
 	
 	if( self = [super init] ) {
-		// If we're running on the main thread for some reason, take care
-		// to not corrupt the current EAGLContext
-		BOOL isMainThread = [NSThread isMainThread];
-	
-		contentScale = 1;
 		fullPath = [path retain];
 		GLubyte * pixels = [self loadPixelsFromPath:path];
 		
 		if( pixels ) {
-			EAGLContext * context;
-			if( !isMainThread ) {
-				context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1 sharegroup:sharegroup];
-				[EAGLContext setCurrentContext:context];
-			}
+			EAGLContext * contextTextureThread = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1 
+									 sharegroup:context.sharegroup];
+			[EAGLContext setCurrentContext: contextTextureThread];
 			
 			[self createTextureWithPixels:pixels format:GL_RGBA];
+			glFlush();
 			
-			if( !isMainThread ) {
-				glFlush();
-				[context release];
-			}
+			[EAGLContext setCurrentContext: nil];
+			[contextTextureThread release];
 			
 			free(pixels);
 		}
@@ -69,28 +58,21 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	return self;
 }
 
-- (id)initWithWidth:(int)widthp height:(int)heightp format:(GLenum)formatp {
+- (id)initWithWidth:(int)widthp height:(int)heightp {
 	// Create an empty texture
 	
 	if( self = [super init] ) {
-		contentScale = 1;
 		fullPath = [@"[Empty]" retain];
 		[self setWidth:widthp height:heightp];
-		[self createTextureWithPixels:NULL format:formatp];
+		[self createTextureWithPixels:NULL format:GL_RGBA];
 	}
 	return self;
-}
-
-- (id)initWithWidth:(int)widthp height:(int)heightp {
-	// Create an empty RGBA texture
-	return [self initWithWidth:widthp height:heightp format:GL_RGBA];
 }
 
 - (id)initWithWidth:(int)widthp height:(int)heightp pixels:(GLubyte *)pixels {
 	// Creates a texture with the given pixels
 	
 	if( self = [super init] ) {
-		contentScale = 1;
 		fullPath = [@"[From Pixels]" retain];
 		[self setWidth:widthp height:heightp];
 		
@@ -110,6 +92,45 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	return self;
 }
 
+- (id)initWithString:(NSString *)string font:(UIFont *)font fill:(BOOL)fill lineWidth:(float)lineWidth {
+	if( self = [super init] ) {		
+		CGSize boundingBox = [string sizeWithFont:font];		
+		[self setWidth:boundingBox.width height:boundingBox.height];
+		
+		CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
+		GLubyte * pixels = (GLubyte *) malloc( realWidth * realHeight);
+		memset( pixels, 0, realWidth * realHeight);
+		CGContextRef context = CGBitmapContextCreate(pixels, realWidth, realHeight, 8, realWidth, colorSpace, kCGImageAlphaNone);
+		CGColorSpaceRelease(colorSpace);
+			
+		// Fill or stroke?
+		if( fill ) {
+			CGContextSetTextDrawingMode(context, kCGTextFill);
+			CGContextSetGrayFillColor(context, 1.0, 1.0);
+		}
+		else {
+			CGContextSetTextDrawingMode(context, kCGTextStroke);
+			CGContextSetGrayStrokeColor(context, 1.0, 1.0);
+			CGContextSetLineWidth(context, lineWidth);
+		}
+
+		UIGraphicsPushContext(context);
+		CGContextTranslateCTM(context, 0.0, realHeight);
+		CGContextScaleCTM(context, 1.0, -1.0);
+		
+		[string drawInRect:CGRectMake(0, 0, width, height)
+			  withFont:font lineBreakMode:UILineBreakModeClip alignment:UIBaselineAdjustmentNone];
+		
+		UIGraphicsPopContext();
+		
+		[self createTextureWithPixels:pixels format:GL_ALPHA];
+		
+		CGContextRelease(context);
+		free(pixels);
+	}
+	return self;
+}
+
 - (void)dealloc {
 	[fullPath release];
 	glDeleteTextures( 1, &textureId );
@@ -125,20 +146,13 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	realHeight = pow(2, ceil(log2( height )));
 }
 
-- (void)createTextureWithPixels:(GLubyte *)pixels format:(GLenum)formatp {
-	// Release previous texture if we had one
-	if( textureId ) {
-		glDeleteTextures( 1, &textureId );
-		textureId = 0;
-	}
-
+- (void)createTextureWithPixels:(GLubyte *)pixels format:(GLenum) format {
 	GLint maxTextureSize;
 	glGetIntegerv( GL_MAX_TEXTURE_SIZE, &maxTextureSize );
 	
 	if( realWidth > maxTextureSize || realHeight > maxTextureSize ) {
 		NSLog(@"Warning: Image %@ larger than MAX_TEXTURE_SIZE (%d)", fullPath, maxTextureSize);
 	}
-	format = formatp;
 		
 	bool wasEnabled = glIsEnabled(GL_TEXTURE_2D);
 	int boundTexture = 0;
@@ -149,7 +163,8 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	glBindTexture(GL_TEXTURE_2D, textureId);
 	glTexImage2D(GL_TEXTURE_2D, 0, format, realWidth, realHeight, 0, format, GL_UNSIGNED_BYTE, pixels);
 	
-	[self setFilter:EJTextureGlobalFilter];
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, textureFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, textureFilter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
@@ -157,39 +172,7 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 	if( !wasEnabled ) {	glDisable(GL_TEXTURE_2D); }
 }
 
-- (void)setFilter:(GLint)filter {
-	textureFilter = filter;
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, textureFilter);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, textureFilter);
-}
-
-- (void)updateTextureWithPixels:(GLubyte *)pixels atX:(int)x y:(int)y width:(int)subWidth height:(int)subHeight {
-	if( !textureId ) { NSLog(@"No texture to update. Call createTexture... first");	return; }
-	
-	bool wasEnabled = glIsEnabled(GL_TEXTURE_2D);
-	int boundTexture = 0;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTexture);
-	
-	glBindTexture(GL_TEXTURE_2D, textureId);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, subWidth, subHeight, format, GL_UNSIGNED_BYTE, pixels);
-	
-	glBindTexture(GL_TEXTURE_2D, boundTexture);
-	if( !wasEnabled ) {	glDisable(GL_TEXTURE_2D); }
-}
-
 - (GLubyte *)loadPixelsFromPath:(NSString *)path {
-	// Try @2x texture?
-	if( [UIScreen mainScreen].scale == 2 ) {
-		NSString * path2x = [[[path stringByDeletingPathExtension]
-			stringByAppendingString:@"@2x"]
-			stringByAppendingPathExtension:[path pathExtension]];
-		
-		if( [[NSFileManager defaultManager] fileExistsAtPath:path2x] ) {
-			contentScale = 2;
-			path = path2x;
-		}
-	}
-	
 	// All CGImage functions return pixels with premultiplied alpha and there's no
 	// way to opt-out - thanks Apple, awesome idea.
 	// So, for PNG images we use the lodepng library instead.
@@ -251,9 +234,6 @@ static GLint EJTextureGlobalFilter = GL_LINEAR;
 
 - (void)bind {
 	glBindTexture(GL_TEXTURE_2D, textureId);
-	if( EJTextureGlobalFilter != textureFilter ) {
-		[self setFilter:EJTextureGlobalFilter];
-	}
 }
 
 

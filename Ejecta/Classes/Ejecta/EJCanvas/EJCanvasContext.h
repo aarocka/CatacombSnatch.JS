@@ -2,6 +2,7 @@
 #import "EJTexture.h"
 #import "EJImageData.h"
 #import "EJPath.h"
+
 #import "EJCanvasTypes.h"
 
 #define EJ_CANVAS_STATE_STACK_SIZE 16
@@ -41,23 +42,14 @@ typedef enum {
 typedef enum {
 	kEJCompositeOperationSourceOver,
 	kEJCompositeOperationLighter,
-	kEJCompositeOperationDarker,
-	kEJCompositeOperationDestinationOut,
-	kEJCompositeOperationDestinationOver,
-	kEJCompositeOperationSourceAtop,
-	kEJCompositeOperationXOR
+	kEJCompositeOperationDarker
 } EJCompositeOperation;
 
 static const struct { GLenum source; GLenum destination; } EJCompositeOperationFuncs[] = {
 	[kEJCompositeOperationSourceOver] = {GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA},
 	[kEJCompositeOperationLighter] = {GL_SRC_ALPHA, GL_ONE},
-	[kEJCompositeOperationDarker] = {GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA},
-	[kEJCompositeOperationDestinationOut] = {GL_ZERO, GL_ONE_MINUS_SRC_ALPHA},
-	[kEJCompositeOperationDestinationOver] = {GL_ONE_MINUS_DST_ALPHA, GL_ONE},
-	[kEJCompositeOperationSourceAtop] = {GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA},
-	[kEJCompositeOperationXOR] = {GL_ONE_MINUS_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA}
+	[kEJCompositeOperationDarker] = {GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA}
 };
-
 
 typedef struct {
 	CGAffineTransform transform;
@@ -75,25 +67,19 @@ typedef struct {
 	EJTextAlign textAlign;
 	EJTextBaseline textBaseline;
 	UIFont * font;
-	
-	EJPath * clipPath;
 } EJCanvasState;
 
 
+
 @interface EJCanvasContext : NSObject {
-	GLuint viewFrameBuffer, viewRenderBuffer;
-	GLuint msaaFrameBuffer, msaaRenderBuffer;
-	GLuint stencilBuffer;
+	GLuint frameBuffer, stencilBuffer;
 	
 	short width, height;
 	short viewportWidth, viewportHeight;
-	short bufferWidth, bufferHeight;
-	
-	BOOL imageSmoothingEnabled;
-	BOOL msaaEnabled;
-	int msaaSamples;
 	
 	EJTexture * currentTexture;
+	EJTexture * lineTexture16;
+	EJTexture * lineTexture4;
 	
 	EJPath * path;
 	
@@ -102,10 +88,6 @@ typedef struct {
 	int stateIndex;
 	EJCanvasState stateStack[EJ_CANVAS_STATE_STACK_SIZE];
 	EJCanvasState * state;
-    
-	float backingStoreRatio;
-	
-	NSCache * fontCache;
 }
 
 - (id)initWithWidth:(short)width height:(short)height;
@@ -114,14 +96,7 @@ typedef struct {
 - (void)bindVertexBuffer;
 - (void)prepare;
 - (void)setTexture:(EJTexture *)newTexture;
-- (void)pushTriX1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2
-			   x3:(float)x3 y3:(float)y3
-			 color:(EJColorRGBA)color
-	 withTransform:(CGAffineTransform)transform;
-- (void)pushQuadV1:(EJVector2)v1 v2:(EJVector2)v2 v3:(EJVector2)v3 v4:(EJVector2)v4
-	t1:(EJVector2)t1 t2:(EJVector2)t2 t3:(EJVector2)t3 t4:(EJVector2)t4
-	color:(EJColorRGBA)color
-	withTransform:(CGAffineTransform)transform;
+- (void)pushTris:(EJTris)tris;
 - (void)pushRectX:(float)x y:(float)y w:(float)w h:(float)h
 	tx:(float)tx ty:(float)ty tw:(float)tw th:(float)th
 	color:(EJColorRGBA)color
@@ -141,6 +116,7 @@ typedef struct {
 - (void)clearRectX:(float)x y:(float)y w:(float)w h:(float)h;
 - (EJImageData*)getImageDataSx:(float)sx sy:(float)sy sw:(float)sw sh:(float)sh;
 - (void)putImageData:(EJImageData*)imageData dx:(float)dx dy:(float)dy;
+- (void)setLineTextureForWidth:(float)projectedWidth;
 - (void)beginPath;
 - (void)closePath;
 - (void)fill;
@@ -153,20 +129,14 @@ typedef struct {
 - (void)arcToX1:(float)x1 y1:(float)y1 x2:(float)x2 y2:(float)y2 radius:(float)radius;
 - (void)arcX:(float)x y:(float)y radius:(float)radius startAngle:(float)startAngle endAngle:(float)endAngle antiClockwise:(BOOL)antiClockwise;
 
+- (void)drawText:(NSString *)text x:(float)x y:(float)y fill:(BOOL)fill;
 - (void)fillText:(NSString *)text x:(float)x y:(float)y;
 - (void)strokeText:(NSString *)text x:(float)x y:(float)y;
-- (float)measureText:(NSString *)text;
 
-- (void)clip;
-- (void)resetClip;
 
 @property (nonatomic) EJCanvasState * state;
 @property (nonatomic) EJCompositeOperation globalCompositeOperation;
 @property (nonatomic, retain) UIFont * font;
-@property (nonatomic, assign) float backingStoreRatio;
-@property (nonatomic) BOOL msaaEnabled;
-@property (nonatomic) int msaaSamples;
-@property (nonatomic) BOOL imageSmoothingEnabled;
 
 /* TODO: not yet implemented:
 	createLinearGradient(x0, y0, x1, y1)
@@ -176,6 +146,7 @@ typedef struct {
 	shadowOffsetY
 	shadowBlur
 	shadowColor
+	clip()
 	isPointInPath(x, y)
 */
 @end

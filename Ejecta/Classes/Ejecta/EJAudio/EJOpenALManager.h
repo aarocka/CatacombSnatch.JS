@@ -6,11 +6,11 @@
 @interface EJOpenALManager : NSObject {
 	ALCcontext * context;
 	ALCdevice * device;
-	NSMutableDictionary *buffers;
+	NSMutableDictionary *sources;
 }
 
 + (EJOpenALManager *)instance;
 
-@property (readonly, nonatomic) NSMutableDictionary * buffers;
+@property (readonly, nonatomic) NSMutableDictionary * sources;
 
 @end

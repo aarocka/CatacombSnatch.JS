@@ -14,60 +14,60 @@
 	
 	CGRect frame = CGRectMake(0, 0, width, height);
 	CGSize screen = [EJApp instance].view.bounds.size;
-    float contentScale = (useRetinaResolution && [UIScreen mainScreen].scale == 2) ? 2 : 1;
+	float contentScale = (useRetinaResolution && [UIScreen mainScreen].scale == 2) ? 2 : 1;
 	float aspect = frame.size.width / frame.size.height;
 	
 	if( scalingMode == kEJScalingModeFitWidth ) {
 		frame.size.width = screen.width;
 		frame.size.height = screen.width / aspect;
 	}
-	else if( scalingMode == kEJScalingModeFitHeight ) {
+	if( scalingMode == kEJScalingModeFitHeight ) {
 		frame.size.width = screen.height * aspect;
 		frame.size.height = screen.height;
 	}
 	float internalScaling = frame.size.width / (float)width;
 	[EJApp instance].internalScaling = internalScaling;
 	
-    backingStoreRatio = internalScaling * contentScale;
+	backingStoreRatio = internalScaling * contentScale;
 	
-	bufferWidth = viewportWidth = frame.size.width * contentScale;
-	bufferHeight = viewportHeight = frame.size.height * contentScale;
+	viewportWidth = frame.size.width * contentScale;
+	viewportHeight = frame.size.height * contentScale;
 	
 	NSLog(
 		@"Creating ScreenCanvas: "
 			@"size: %dx%d, aspect ratio: %.3f, "
 			@"scaled: %.3f = %.0fx%.0f, "
-			@"retina: %@ = %.0fx%.0f, "
-			@"msaa: %@",
+			@"using retina: %@ = %.0fx%.0f", 
 		width, height, aspect, 
 		internalScaling, frame.size.width, frame.size.height,
 		(useRetinaResolution ? @"yes" : @"no"),
-		frame.size.width * contentScale, frame.size.height * contentScale,
-		(msaaEnabled ? [NSString stringWithFormat:@"yes (%d samples)", msaaSamples] : @"no")
+		frame.size.width * contentScale, frame.size.height * contentScale
 	);
 	
 	// Create the OpenGL UIView with final screen size and content scaling (retina)
 	glview = [[EAGLView alloc] initWithFrame:frame contentScale:contentScale];
 	
-	// This creates the frame- and renderbuffers
+	
+	// This creates the framebuffer and our internal vertex buffer
 	[super create];
 	
-	// Set up the renderbuffer and some initial OpenGL properties
-	[[EJApp instance].glContext renderbufferStorage:GL_RENDERBUFFER fromDrawable:(CAEAGLLayer *)glview.layer];
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, viewRenderBuffer);
 	
-
+	// Set up the renderbuffer and some initial OpenGL properties
+	glGenRenderbuffers(1, &colorRenderbuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, colorRenderbuffer);
+	[glview.context renderbufferStorage:GL_RENDERBUFFER fromDrawable:(CAEAGLLayer *)glview.layer];
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRenderbuffer);
+	
 	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
 	glDisable(GL_DITHER);
 	
 	glEnable(GL_BLEND);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_ALWAYS);
 	
 	[self prepare];
 	
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
 	// Append the OpenGL view to Impact's main view
@@ -77,7 +77,14 @@
 
 - (void)dealloc {
 	[glview release];
+	glDeleteRenderbuffers(1, &colorRenderbuffer);
 	[super dealloc];
+}
+
+- (void)createStencilBufferOnce {
+	if( stencilBuffer ) { return; }
+	[super createStencilBufferOnce];
+	glBindRenderbuffer(GL_RENDERBUFFER, colorRenderbuffer);
 }
 
 - (void)prepare {
@@ -89,8 +96,8 @@
 }
 
 - (EJImageData*)getImageDataSx:(float)sx sy:(float)sy sw:(float)sw sh:(float)sh {
-	// FIXME: This takes care of the flipped pixel layout and the internal scaling.
-	// The latter will mush pixel; not sure how to fix it - print warning instead.
+	// FIXME: This takes care of the flipped pixel layout and the internal scaling
+	// the latter will mush pixel; not sure how to fix it - print warning instead.
 	
 	if( backingStoreRatio != 1 && [EJTexture smoothScaling] ) {
 		NSLog(
@@ -125,26 +132,13 @@
 	return [[[EJImageData alloc] initWithWidth:sw height:sh pixels:(GLubyte *)pixels] autorelease];
 }
 
-- (void)finish {
-	glFinish();
+- (void)resetGLContext {
+	[glview resetContext];
 }
 
 - (void)present {
 	[self flushBuffers];
-	
-	if( msaaEnabled ) {
-		//Bind the MSAA and View frameBuffers and resolve
-		glBindFramebuffer(GL_READ_FRAMEBUFFER_APPLE, msaaFrameBuffer);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER_APPLE, viewFrameBuffer);
-		glResolveMultisampleFramebufferAPPLE();
-		
-		glBindRenderbuffer(GL_RENDERBUFFER, viewRenderBuffer);
-		[[EJApp instance].glContext presentRenderbuffer:GL_RENDERBUFFER];
-		glBindFramebuffer(GL_FRAMEBUFFER, msaaFrameBuffer);
-	}
-	else {
-		[[EJApp instance].glContext presentRenderbuffer:GL_RENDERBUFFER];
-	}	
+	[glview.context presentRenderbuffer:GL_RENDERBUFFER];
 }
 
 @end

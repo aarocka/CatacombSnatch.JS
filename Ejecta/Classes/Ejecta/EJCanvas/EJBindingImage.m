@@ -8,24 +8,27 @@
 	// This will begin loading the texture in a background thread and will call the
 	// JavaScript onload callback when done
 	loading = YES;
+	oldContext = [EAGLContext currentContext];
 	
 	NSInvocationOperation* loadOp = [[NSInvocationOperation alloc] initWithTarget:self
-				selector:@selector(load:) object:[EJApp instance].glContext.sharegroup];
+				selector:@selector(load:) object:oldContext];
 	[loadOp setThreadPriority:0.0];
 	[[EJApp instance].opQueue addOperation:loadOp];
 	[loadOp release];
 }
 
-- (void)load:(EAGLSharegroup *)sharegroup {
-	@autoreleasepool {	
-		NSLog(@"Loading Image: %@", path );
-		NSString * fullPath = [[EJApp instance] pathForResource:path];
-		EJTexture * tempTex = [[[EJTexture alloc] initWithPath:fullPath sharegroup:sharegroup] autorelease];
-		[self performSelectorOnMainThread:@selector(endLoad:) withObject:tempTex waitUntilDone:NO];
-	}
+- (void)load:(EAGLContext *)context {
+	NSAutoreleasePool *autoreleasepool = [[NSAutoreleasePool alloc] init];
+	
+	NSLog(@"Loading Image: %@", path );
+	EJTexture * tempTex = [[[EJTexture alloc] initWithPath:[[EJApp instance] pathForResource:path] context:context] autorelease];
+	[self performSelectorOnMainThread:@selector(endLoad:) withObject:tempTex waitUntilDone:NO];
+	
+	[autoreleasepool release];
 }
 
 - (void)endLoad:(EJTexture *)tex {
+	[EAGLContext setCurrentContext:oldContext];
 	loading = NO;
 	texture = [tex retain];
 	if( tex.textureId ) {
@@ -76,15 +79,11 @@ EJ_BIND_SET(src, ctx, value) {
 }
 
 EJ_BIND_GET(width, ctx ) {
-	return JSValueMakeNumber( ctx, texture ? (texture.width / texture.contentScale) : 0);
+	return JSValueMakeNumber( ctx, texture ? texture.width : 0);
 }
 
 EJ_BIND_GET(height, ctx ) { 
-	return JSValueMakeNumber( ctx, texture ? (texture.height / texture.contentScale) : 0 );
-}
-
-EJ_BIND_GET(complete, ctx ) {
-	return JSValueMakeBoolean(ctx, (texture && texture.textureId) );
+	return JSValueMakeNumber( ctx, texture ? texture.height : 0 );
 }
 
 EJ_BIND_EVENT(load);
