@@ -36,11 +36,3 @@ tramp
 # Org-mode
 .org-id-locations
 *_archive
-
-# Ignore the engine sourcecode
-impact/lib/impact/
-impact/lib/weltmeister/
-
-
-
-README.MD
