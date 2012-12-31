@@ -1,62 +1,65 @@
 <!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="CatacombSnatch.JS : " />
 
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Catacombsnatch by rainbowdash</title>
+    <title>CatacombSnatch.JS</title>
   </head>
 
   <body>
 
-    <header>
-      <div class="container">
-        <h1>Catacombsnatch</h1>
-        <h2></h2>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/rainbowdash/CatacombSnatch">View on GitHub</a>
 
-        <section id="downloads">
-          <a href="https://github.com/rainbowdash/CatacombSnatch/zipball/master" class="btn">Download as .zip</a>
-          <a href="https://github.com/rainbowdash/CatacombSnatch/tarball/master" class="btn">Download as .tar.gz</a>
-          <a href="https://github.com/rainbowdash/CatacombSnatch/catacombsnatch.html" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
-        </section>
-      </div>
-    </header>
+          <h1 id="project_title">CatacombSnatch.JS</h1>
+          <h2 id="project_tagline"></h2>
 
-    <div class="container">
-      <section id="main_content">
-        <h3>Welcome to GitHub Pages.</h3>
-<strong>HEY YOU CAN PLAY THE GAME <a href="https://rainbowdash.github.com/CatacombSnatch/thegame">HERE</a></strong>
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/rainbowdash/CatacombSnatch/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/rainbowdash/CatacombSnatch/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>Hello Everypony</h1>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<h3>About</h3>
 
-<h3>Designer Templates</h3>
+<p>Once upon a time, Mojang teamed up with Humble Bundle to do a charity event called the Humble Mojam Bundle. The challenge was to build a game in a weekend. Anyone who contributed money gained access to the source code while the games were being build. Wolfire Games(The company who started the Humble Bundles) and Oxeye Games(Jeb/Cobalt) also pitched in. Fast forward to , I got really bored in Social Studies class, so I decided to port Mojang's Catacomb Snatch to JavaScript. CatacombSnatch.JS was built using the Impact.JS game engine.</p>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<h3>Understanding the Source Code</h3>
 
-<h3>Rather Drive Stick?</h3>
+<p>Due to the fact that Impact is not free, and the fact that I am not sure if he would like me sharing the source code for Impact, I left the engine source out of the repo. However I did include the original source code for Catacomb Snatch(I think Notch is cool with that). If you own a copy of Impact, simply download a copy and drag the <code>lib/impact</code> folder into the <code>catacombsnatch/impact/lib</code> folder. If you don't own a copy,  I have a minified/compiled version of the javascript. Just run it from a webserver.</p>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<h3>Directory Structure</h3>
 
-<h3>Authors and Contributors</h3>
+<p>The impact folder contains the game. Inside that folder contains the media folder and the lib folder. The lib folder contains the weltmiester level editor and the game sourcecode. However it is missing the impact folder which contains the engine its self.</p>
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>The Ejecta folder contains the iOS port of the game. </p>
 
-<h3>Support or Contact</h3>
-
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+<p>The CatacombScatch_SRC folder is the original Java sourcecode.</p>
       </section>
     </div>
 
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">CatacombSnatch.JS maintained by <a href="https://github.com/rainbowdash">rainbowdash</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
     
+
   </body>
 </html>
