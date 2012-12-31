@@ -37,6 +37,7 @@ all of the entiteis, server side code, and art assets.
 
 #TODO
 * Add death animations
+* Add coins
 * Build AI
 * Add touch controls
 * Build map
