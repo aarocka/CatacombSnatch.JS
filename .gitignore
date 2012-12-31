@@ -13,6 +13,7 @@ Icon
 
 # SublimeText project files
 *.sublime-workspace
+*.sublime-project
 
 # Windows image file caches
 Thumbs.db
