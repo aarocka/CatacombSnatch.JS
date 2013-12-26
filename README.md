@@ -48,3 +48,6 @@ all of the entiteis, server side code, and art assets.
 * Implement custom level building using html5 storage
 * Make menus
 * Make multiplauer
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/rainbowdash/catacombsnatch.js/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
